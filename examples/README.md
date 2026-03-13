@@ -1,77 +1,94 @@
 # MCP-C Examples
 
-## What each example proves
+## `todo-api/` — Does the runtime work?
 
-### `todo-api/` — Runtime works (human test)
-
-Proves that mcp-c can read an OpenAPI spec and turn it into a working CLI with discovery, auth, CRUD, and output formatting.
-
-**What it tests:**
-- Parser reads OpenAPI 3.x correctly
-- Discovery protocol outputs valid JSON in 3 phases
-- Dynamic commands are generated from spec
-- HTTP executor makes real API calls
-- Auth (bearer token) works
-- Output formats (json, table, envelope) work
-
-**What it does NOT test:**
-- Whether an AI agent can actually use the protocol
-- Whether progressive discovery saves context in practice
-- Whether the envelope format helps agents make better decisions
+A local Todo API server + demo script that exercises every mcp-c feature: 3-phase discovery, CRUD operations, auth, output formats (json, table, envelope), verbose mode, dynamic help.
 
 ```bash
-# Run the demo
 bash examples/todo-api/demo.sh
 ```
 
+**This proves:** the code works. Parser reads specs, discovery outputs JSON, executor makes HTTP calls, auth flows, output formats.
+
+**This does NOT prove:** that mcp-c is better than MCP for AI agents.
+
 ---
 
-### `agent-test/` — Protocol works for AI agents (the real test)
+## `agent-test/` — Does the protocol actually help AI agents?
 
-This is the test that matters. It gives a real AI agent (Claude) a task and measures how much context mcp-c consumes compared to alternatives.
-
-**The task:** "List pending todos from the API, find the highest priority one, and mark it as done."
-
-**Three approaches tested:**
-
-| Approach | How the agent discovers the API | How it executes |
-|---|---|---|
-| **MCP-style** | All tool schemas loaded upfront | JSON-RPC tool call |
-| **CLI raw** | Reads `--help` text | Runs shell command |
-| **MCP-C** | Progressive discovery (3 phases) | Runs shell command |
-
-**What it measures:**
-- **Input tokens**: how much context the agent consumes for discovery + invocation
-- **Output tokens**: how much response data enters the context
-- **Accuracy**: did the agent complete the task correctly?
-- **Roundtrips**: how many calls did the agent need?
-
-**How to run:**
+This is the test that matters. It gives a real AI agent (Claude) the same task via 3 approaches and measures real token consumption and cost.
 
 ```bash
-# Start the todo API server
+node examples/todo-api/server.mjs &
+bash examples/agent-test/run.sh
+```
+
+**The task:** "List pending todos, find the highest priority one, mark it as done."
+
+**Three approaches:**
+
+| Approach | Discovery | Execution |
+|---|---|---|
+| MCP-style | All 6 tool schemas in system prompt | `curl` |
+| CLI raw | No schema, explore via `curl` | `curl` |
+| MCP-C | Progressive: `--discover` → `--discover group` → `--discover command` | `mcp-c ... todos list` |
+
+### First real results (2026-03-13)
+
+| Metric | MCP-style | CLI raw | MCP-C |
+|---|---|---|---|
+| Total input tokens | 86,837 | 108,294 | 155,969 |
+| Cache create | 22,168 | 12,737 | 13,531 |
+| Cache read | 64,663 | 95,550 | 142,429 |
+| Output tokens | 531 | 626 | 1,107 |
+| Turns | 4 | 5 | 7 |
+| Cost | $0.184 | $0.143 | $0.184 |
+| Correct? | Yes | Yes | Yes |
+
+### What we learned
+
+**MCP-C was NOT cheaper in this test.** It was the most expensive approach by total input tokens.
+
+Why: progressive discovery requires more turns (7 vs 4). Each turn re-reads the full conversation from cache. Even though each individual mcp-c payload is small (~200-500 tokens), the accumulated cost of re-reading the growing conversation on every turn outweighs the savings.
+
+**The real cost breakdown:**
+
+- **MCP-style**: Pays upfront (22K cache_create for all schemas) but needs fewer turns. The schemas are cached and re-read cheaply.
+- **CLI raw**: Smallest system prompt, but needs trial-and-error exploration. Middle ground.
+- **MCP-C**: Small system prompt, but 3 discovery calls + execution = 7 turns. Each turn re-reads everything that came before.
+
+### When MCP-C WOULD win
+
+The Todo API has only 6 endpoints. This is a small API where loading everything upfront is cheap. MCP-C's progressive discovery is designed for **large APIs** (50-100+ endpoints) where:
+
+1. Loading all schemas upfront would be 20K-50K tokens (vs our 500-token toy schema)
+2. The agent only needs 2-3 tools out of 82
+3. The upfront cost dwarfs the roundtrip cost
+
+The GitHub MCP server (82 tools, 24K tokens) would be a fairer test. The benchmark (`npm run test:bench`) measures this theoretically — the agent test should be run against a larger API to validate in practice.
+
+### What this means for the project
+
+1. **Progressive discovery has a floor cost** — each phase is a roundtrip, and roundtrips aren't free
+2. **For small APIs (< 20 endpoints), MCP-style wins** — just load everything
+3. **MCP-C should auto-detect API size** — small API? dump all schemas. Large API? progressive discovery
+4. **Combining phases would help** — `--discover` could return manifest + first group in one call
+5. **The envelope format still saves output tokens** — but we didn't test that here (all approaches used raw JSON)
+
+### How to run
+
+```bash
+# Start the server
 node examples/todo-api/server.mjs &
 
-# Run the agent test (requires Claude API access via `claude` CLI)
+# Run the test (takes ~2 min, costs ~$0.50 total)
 bash examples/agent-test/run.sh
+
+# Inspect raw results
+cat examples/agent-test/results/mcp-style.json | jq '{cost: .total_cost_usd, turns: .num_turns, result: .result}'
+cat examples/agent-test/results/cli-raw.json | jq '{cost: .total_cost_usd, turns: .num_turns, result: .result}'
+cat examples/agent-test/results/mcp-c.json | jq '{cost: .total_cost_usd, turns: .num_turns, result: .result}'
 
 # Stop the server
 kill %1
 ```
-
-**How it works:**
-
-1. Starts the Todo API server (same as todo-api example)
-2. Runs Claude via `claude -p` with three different system prompts:
-   - **MCP-style**: all tool schemas injected in system prompt
-   - **CLI raw**: told to use `curl` and read help text
-   - **MCP-C**: told to use `mcp-c --discover` progressively
-3. Each run gets the same task
-4. Measures tokens from `--output-format json` metadata
-5. Compares results
-
-**Expected outcome:**
-
-The MCP-style approach should use the most input tokens (all schemas loaded upfront). CLI raw should use the fewest input tokens but may need more roundtrips. MCP-C should be in between on input tokens but produce the most compact output via envelope format.
-
-The point is not that mcp-c "wins" every metric — it's that it offers **structured discovery at CLI-level cost**, which neither MCP nor raw CLI can do alone.
