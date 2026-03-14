@@ -1,9 +1,10 @@
 {
-  "name": "@lucianfialho/tocli",
-  "version": "0.1.0",
+  "name": "spec2cli",
+  "version": "0.1.1",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
+    "spec2cli": "dist/index.js",
     "tocli": "dist/index.js"
   },
   "files": [
