@@ -1,5 +1,7 @@
 # VHS demo tape for spec2cli
-# Prerequisites: node examples/todo-api/server.mjs running on port 4000
+# Prerequisites:
+#   1. npm install -g spec2cli
+#   2. node examples/todo-api/server.mjs running on port 4000
 # Run: vhs demo/demo.tape
 
 Output demo/demo.gif
@@ -14,38 +16,38 @@ Set TypingSpeed 40ms
 Set CursorBlink false
 
 # Show help
-Type "npx spec2cli --spec api.yaml --help"
+Type "spec2cli --spec api.yaml --help"
 Enter
-Sleep 3s
+Sleep 2.5s
 
 # List with table
-Type "npx spec2cli --spec api.yaml --base-url http://localhost:4000 --output table todos list"
+Type "spec2cli --spec api.yaml --base-url http://localhost:4000 --output table todos list"
 Enter
-Sleep 3s
+Sleep 2.5s
 
 # Filter pending
-Type "npx spec2cli --spec api.yaml --base-url http://localhost:4000 --output table todos list --status pending"
+Type "spec2cli --spec api.yaml --base-url http://localhost:4000 --output table todos list --status pending"
 Enter
-Sleep 3s
+Sleep 2.5s
 
 # Get as YAML
-Type "npx spec2cli --spec api.yaml --base-url http://localhost:4000 --output yaml todos get --id 1"
+Type "spec2cli --spec api.yaml --base-url http://localhost:4000 --output yaml todos get --id 1"
 Enter
-Sleep 3s
+Sleep 2.5s
 
 # Create with auth
-Type "npx spec2cli --spec api.yaml --base-url http://localhost:4000 --token test-token-123 --output json todos create --title 'Ship v1' --priority high"
+Type "spec2cli --spec api.yaml --base-url http://localhost:4000 --token test-token-123 --output json todos create --title 'Ship v1' --priority high"
 Enter
-Sleep 3s
+Sleep 2.5s
 
 # Search registry
-Type "npx spec2cli search payments"
+Type "spec2cli search payments"
 Enter
-Sleep 3s
+Sleep 2.5s
 
 # Agent help
-Type "npx spec2cli --spec api.yaml --agent-help"
+Type "spec2cli --spec api.yaml --agent-help"
 Enter
-Sleep 5s
+Sleep 4s
 
 Sleep 1s
