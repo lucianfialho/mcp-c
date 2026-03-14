@@ -17,7 +17,20 @@ const program = new Command();
 program
   .name("spec2cli")
   .description("Turn any OpenAPI spec into a CLI. No code generation, no build step.")
-  .version("0.1.0");
+  .version("0.1.2")
+  .addHelpText("after", `
+Commands (registry):
+  use <api> [args...]     Use an API from the registry
+  search <query>          Search APIs by name, description, or category
+  add <name> --spec <url> Add a custom API to your local registry
+  add --from <url>        Import APIs from a remote registry
+  remove <name>           Remove a custom API from local registry
+
+Examples:
+  spec2cli --spec ./api.yaml pets list
+  spec2cli use petstore pet findpetsbystatus --status available
+  spec2cli search payments
+  spec2cli add myapi --spec ./openapi.yaml --base-url http://localhost:3000`);
 
 // Static commands
 registerAuthCommands(program);
@@ -53,9 +66,9 @@ async function main() {
     if (rawArgs.length > 0 && !rawArgs[0].startsWith("-") && rawArgs[0] !== "auth" && rawArgs[0] !== "init") {
       console.error("Error: no OpenAPI spec found.\n");
       console.error("  Either pass --spec:");
-      console.error("    tocli --spec ./openapi.yaml " + rawArgs.join(" ") + "\n");
+      console.error("    spec2cli --spec ./openapi.yaml " + rawArgs.join(" ") + "\n");
       console.error("  Or create a .toclirc:");
-      console.error("    tocli init --spec ./openapi.yaml\n");
+      console.error("    spec2cli init --spec ./openapi.yaml\n");
       process.exit(1);
     }
     program.parse(process.argv);
