@@ -16,7 +16,14 @@
     "test": "vitest run",
     "prepublishOnly": "npm run build && npm test"
   },
-  "keywords": ["cli", "openapi", "api", "rest", "swagger", "cli-generator"],
+  "keywords": [
+    "cli",
+    "openapi",
+    "api",
+    "rest",
+    "swagger",
+    "cli-generator"
+  ],
   "author": "Lucian Fialho",
   "license": "MIT",
   "description": "Turn any OpenAPI spec into a CLI. No code generation, no build step.",
@@ -33,6 +40,7 @@
   },
   "dependencies": {
     "commander": "^13.0.0",
+    "swagger2openapi": "^7.0.8",
     "yaml": "^2.7.0"
   },
   "devDependencies": {

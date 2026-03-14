@@ -2,9 +2,21 @@ import { readFile } from "node:fs/promises";
 import { parse as parseYaml } from "yaml";
 import type { OpenAPISpec } from "./types.js";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnySpec = any;
+
 export async function loadSpec(source: string): Promise<OpenAPISpec> {
   const raw = await fetchSource(source);
-  const spec = parseContent(raw, source);
+  const parsed = parseContent(raw, source) as AnySpec;
+
+  // Swagger 2.0 → convert to OpenAPI 3.0
+  if (parsed.swagger && String(parsed.swagger).startsWith("2.")) {
+    const converted = await convertSwagger2(parsed);
+    validate(converted);
+    return converted;
+  }
+
+  const spec = parsed as OpenAPISpec;
   validate(spec);
   return spec;
 }
@@ -29,10 +41,9 @@ async function fetchSource(source: string): Promise<string> {
   }
 }
 
-function parseContent(raw: string, source: string): OpenAPISpec {
+function parseContent(raw: string, source: string): unknown {
   const trimmed = raw.trimStart();
 
-  // JSON starts with { or [
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
     try {
       return JSON.parse(raw);
@@ -41,18 +52,33 @@ function parseContent(raw: string, source: string): OpenAPISpec {
     }
   }
 
-  // Try YAML
   try {
-    return parseYaml(raw) as OpenAPISpec;
+    return parseYaml(raw);
   } catch {
     throw new Error(`Invalid YAML in spec: ${source}`);
   }
 }
 
+async function convertSwagger2(spec: AnySpec): Promise<OpenAPISpec> {
+  // @ts-expect-error — swagger2openapi has no type declarations
+  const { convertObj } = await import("swagger2openapi");
+
+  return new Promise((resolve, reject) => {
+    convertObj(spec, { patch: true, warnOnly: true }, (err: unknown, result: AnySpec) => {
+      if (err) {
+        reject(new Error(`Failed to convert Swagger 2.0 spec: ${(err as Error).message}`));
+        return;
+      }
+      resolve(result.openapi as OpenAPISpec);
+    });
+  });
+}
+
 function validate(spec: OpenAPISpec): void {
   if (!spec.openapi || !spec.openapi.startsWith("3.")) {
+    const version = spec.openapi ?? (spec as AnySpec).swagger ?? "missing";
     throw new Error(
-      `Unsupported OpenAPI version: ${spec.openapi ?? "missing"}. tocli requires OpenAPI 3.x.`
+      `Unsupported spec version: ${version}. spec2cli supports OpenAPI 3.x and Swagger 2.0.`
     );
   }
 

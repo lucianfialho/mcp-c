@@ -70,16 +70,31 @@ describe("loadSpec", () => {
     });
   });
 
-  describe("validation", () => {
-    it("rejects Swagger 2.0 specs", async () => {
-      const { writeFile, unlink } = await import("node:fs/promises");
-      const tmpPath = path.join(FIXTURE_DIR, "swagger2.yaml");
-      await writeFile(tmpPath, 'swagger: "2.0"\ninfo:\n  title: Old\n  version: "1.0"\npaths:\n  /test:\n    get:\n      summary: Test\n');
-
-      await expect(loadSpec(tmpPath)).rejects.toThrow("Unsupported OpenAPI version");
-      await unlink(tmpPath);
+  describe("swagger 2.0 conversion", () => {
+    it("converts Swagger 2.0 to OpenAPI 3.0 automatically", async () => {
+      const spec = await loadSpec(path.join(FIXTURE_DIR, "petstore-swagger2.json"));
+      expect(spec.openapi).toMatch(/^3\./);
+      expect(spec.info.title).toBe("Petstore Swagger 2");
+      expect(spec.paths).toBeDefined();
+      expect(spec.paths["/pets"]).toBeDefined();
     });
 
+    it("preserves operations after conversion", async () => {
+      const spec = await loadSpec(path.join(FIXTURE_DIR, "petstore-swagger2.json"));
+      expect(spec.paths["/pets"]?.get?.operationId).toBe("listPets");
+      expect(spec.paths["/pets"]?.post?.operationId).toBe("createPet");
+      expect(spec.paths["/pets/{petId}"]?.get?.operationId).toBe("getPet");
+    });
+
+    it("converts host+basePath to servers", async () => {
+      const spec = await loadSpec(path.join(FIXTURE_DIR, "petstore-swagger2.json"));
+      expect(spec.servers).toBeDefined();
+      expect(spec.servers!.length).toBeGreaterThan(0);
+      expect(spec.servers![0].url).toContain("petstore.example.com");
+    });
+  });
+
+  describe("validation", () => {
     it("rejects spec with no paths", async () => {
       const { writeFile, unlink } = await import("node:fs/promises");
       const tmpPath = path.join(FIXTURE_DIR, "empty.yaml");
