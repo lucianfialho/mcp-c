@@ -1,20 +1,35 @@
 {
-  "name": "tocli",
+  "name": "@lucianfialho/tocli",
   "version": "0.1.0",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
     "tocli": "dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepublishOnly": "npm run build && npm test"
   },
-  "keywords": ["cli", "openapi", "api", "rest", "codegen"],
-  "author": "",
+  "keywords": ["cli", "openapi", "api", "rest", "swagger", "cli-generator"],
+  "author": "Lucian Fialho",
   "license": "MIT",
   "description": "Turn any OpenAPI spec into a CLI. No code generation, no build step.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lucianfialho/tocli.git"
+  },
+  "homepage": "https://github.com/lucianfialho/tocli",
+  "bugs": {
+    "url": "https://github.com/lucianfialho/tocli/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "commander": "^13.0.0",
     "yaml": "^2.7.0"

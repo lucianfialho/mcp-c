@@ -13,10 +13,10 @@ tocli reads an OpenAPI 3.x spec at runtime and dynamically generates a fully fun
 
 ```bash
 # Try it with any OpenAPI spec
-npx tocli --spec https://petstore3.swagger.io/api/v3/openapi.json pets --help
+npx @lucianfialho/tocli --spec https://petstore3.swagger.io/api/v3/openapi.json pets --help
 
 # Or install globally
-npm install -g tocli
+npm install -g @lucianfialho/tocli
 ```
 
 ## How it works
