@@ -3,8 +3,8 @@
 **Turn any OpenAPI spec into a CLI. No code generation, no build step.**
 
 ```bash
-npx tocli --spec ./api.yaml pets list --status available
-npx tocli --spec ./api.yaml pets create --name Rex --token sk-123
+npx spec2cli --spec ./api.yaml pets list --status available
+npx spec2cli --spec ./api.yaml pets create --name Rex --token sk-123
 ```
 
 tocli reads an OpenAPI 3.x spec at runtime and dynamically generates a fully functional CLI with commands, flags, auth, and formatted output.
@@ -13,10 +13,10 @@ tocli reads an OpenAPI 3.x spec at runtime and dynamically generates a fully fun
 
 ```bash
 # Try it with any OpenAPI spec
-npx @lucianfialho/tocli --spec https://petstore3.swagger.io/api/v3/openapi.json pets --help
+npx spec2cli --spec https://petstore3.swagger.io/api/v3/openapi.json pets --help
 
 # Or install globally
-npm install -g @lucianfialho/tocli
+npm install -g spec2cli
 ```
 
 ## How it works
@@ -152,7 +152,7 @@ tocli --spec api.yaml --verbose pets get --petId 1
 ## Development
 
 ```bash
-git clone https://github.com/lucianfialho/tocli
+git clone https://github.com/lucianfialho/spec2cli
 cd tocli
 npm install
 npm run build

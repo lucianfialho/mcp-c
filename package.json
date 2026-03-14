@@ -22,11 +22,11 @@
   "description": "Turn any OpenAPI spec into a CLI. No code generation, no build step.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lucianfialho/tocli.git"
+    "url": "git+https://github.com/lucianfialho/spec2cli.git"
   },
-  "homepage": "https://github.com/lucianfialho/tocli",
+  "homepage": "https://github.com/lucianfialho/spec2cli",
   "bugs": {
-    "url": "https://github.com/lucianfialho/tocli/issues"
+    "url": "https://github.com/lucianfialho/spec2cli/issues"
   },
   "engines": {
     "node": ">=18"
