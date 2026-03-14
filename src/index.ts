@@ -15,7 +15,7 @@ import type { OperationGroup, OpenAPISpec } from "./parser/types.js";
 const program = new Command();
 
 program
-  .name("tocli")
+  .name("spec2cli")
   .description("Turn any OpenAPI spec into a CLI. No code generation, no build step.")
   .version("0.1.0");
 

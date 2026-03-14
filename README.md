@@ -1,4 +1,4 @@
-# tocli
+# spec2cli
 
 **Turn any OpenAPI spec into a CLI. No code generation, no build step.**
 
@@ -7,7 +7,7 @@ npx spec2cli --spec ./api.yaml pets list --status available
 npx spec2cli --spec ./api.yaml pets create --name Rex --token sk-123
 ```
 
-tocli reads an OpenAPI 3.x spec at runtime and dynamically generates a fully functional CLI with commands, flags, auth, and formatted output.
+spec2cli reads an OpenAPI 3.x spec at runtime and dynamically generates a fully functional CLI with commands, flags, auth, and formatted output.
 
 ## Quick start
 
@@ -51,51 +51,51 @@ OpenAPI 3.x spec (YAML or JSON)
 
 ```bash
 # List
-tocli --spec api.yaml pets list
-tocli --spec api.yaml pets list --status available --limit 5
+spec2cli --spec api.yaml pets list
+spec2cli --spec api.yaml pets list --status available --limit 5
 
 # Create
-tocli --spec api.yaml --token sk-123 pets create --name Rex --tag dog
+spec2cli --spec api.yaml --token sk-123 pets create --name Rex --tag dog
 
 # Get by ID
-tocli --spec api.yaml pets get --petId 1
+spec2cli --spec api.yaml pets get --petId 1
 
 # Update
-tocli --spec api.yaml --token sk-123 pets update --petId 1 --status sold
+spec2cli --spec api.yaml --token sk-123 pets update --petId 1 --status sold
 
 # Delete
-tocli --spec api.yaml --token sk-123 pets delete --petId 1
+spec2cli --spec api.yaml --token sk-123 pets delete --petId 1
 ```
 
 ### Output formats
 
 ```bash
-tocli --spec api.yaml --output json pets list      # compact JSON (pipe-friendly)
-tocli --spec api.yaml --output pretty pets list     # colorized JSON (default in TTY)
-tocli --spec api.yaml --output table pets list      # aligned columns
-tocli --spec api.yaml --quiet pets create --name X  # no output, just exit code
-tocli --spec api.yaml --max-items 3 pets list       # limit results
+spec2cli --spec api.yaml --output json pets list      # compact JSON (pipe-friendly)
+spec2cli --spec api.yaml --output pretty pets list     # colorized JSON (default in TTY)
+spec2cli --spec api.yaml --output table pets list      # aligned columns
+spec2cli --spec api.yaml --quiet pets create --name X  # no output, just exit code
+spec2cli --spec api.yaml --max-items 3 pets list       # limit results
 ```
 
 ### Authentication
 
 ```bash
 # Inline flags (auto-detected from spec securitySchemes)
-tocli --spec api.yaml --token sk-123 pets create --name Rex
-tocli --spec api.yaml --api-key my-key store inventory
+spec2cli --spec api.yaml --token sk-123 pets create --name Rex
+spec2cli --spec api.yaml --api-key my-key store inventory
 
 # Persistent profiles
-tocli auth login --token sk-prod-key
-tocli auth login --api-key staging-key --profile staging
-tocli auth status
-tocli auth logout
+spec2cli auth login --token sk-prod-key
+spec2cli auth login --api-key staging-key --profile staging
+spec2cli auth status
+spec2cli auth logout
 ```
 
 ### Project config
 
 ```bash
 # Initialize config in your project
-tocli init --spec ./openapi.yaml --base-url https://api.example.com
+spec2cli init --spec ./openapi.yaml --base-url https://api.example.com
 ```
 
 Creates a `.toclirc` file:
@@ -116,24 +116,24 @@ environments:
 Now you can skip `--spec`:
 
 ```bash
-tocli pets list
-tocli --env staging pets list
+spec2cli pets list
+spec2cli --env staging pets list
 ```
 
 ### Dynamic help
 
-tocli generates help automatically from the spec:
+spec2cli generates help automatically from the spec:
 
 ```bash
-tocli --spec api.yaml --help           # shows all command groups
-tocli --spec api.yaml pets --help      # shows subcommands
-tocli --spec api.yaml pets create --help  # shows flags with types
+spec2cli --spec api.yaml --help           # shows all command groups
+spec2cli --spec api.yaml pets --help      # shows subcommands
+spec2cli --spec api.yaml pets create --help  # shows flags with types
 ```
 
 ### Debug
 
 ```bash
-tocli --spec api.yaml --verbose pets get --petId 1
+spec2cli --spec api.yaml --verbose pets get --petId 1
 # → GET https://api.example.com/pets/1
 #   Accept: application/json
 # ← 200 OK
@@ -153,7 +153,7 @@ tocli --spec api.yaml --verbose pets get --petId 1
 
 ```bash
 git clone https://github.com/lucianfialho/spec2cli
-cd tocli
+cd spec2cli
 npm install
 npm run build
 npm test
