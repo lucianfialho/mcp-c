@@ -1,5 +1,6 @@
 # VHS demo tape for spec2cli
-# Run: node examples/todo-api/server.mjs & sleep 1 && vhs demo/demo.tape
+# Prerequisites: node examples/todo-api/server.mjs running on port 4000
+# Run: vhs demo/demo.tape
 
 Output demo/demo.gif
 
@@ -10,45 +11,41 @@ Set Height 550
 Set Theme "Catppuccin Mocha"
 Set Padding 15
 Set TypingSpeed 40ms
+Set CursorBlink false
 
-# Title
-Type "# spec2cli — Turn any API into a CLI"
+# Show help
+Type "npx spec2cli --spec api.yaml --help"
 Enter
-Sleep 1s
-
-# Help
-Type "node dist/index.js --spec examples/todo-api/openapi.yaml --help"
-Enter
-Sleep 2.5s
+Sleep 3s
 
 # List with table
-Type "node dist/index.js --spec examples/todo-api/openapi.yaml --base-url http://localhost:4000 --output table todos list"
+Type "npx spec2cli --spec api.yaml --base-url http://localhost:4000 --output table todos list"
 Enter
-Sleep 2.5s
+Sleep 3s
 
-# Filter
-Type "node dist/index.js --spec examples/todo-api/openapi.yaml --base-url http://localhost:4000 --output table todos list --status pending"
+# Filter pending
+Type "npx spec2cli --spec api.yaml --base-url http://localhost:4000 --output table todos list --status pending"
 Enter
-Sleep 2.5s
+Sleep 3s
 
-# Get single item as YAML
-Type "node dist/index.js --spec examples/todo-api/openapi.yaml --base-url http://localhost:4000 --output yaml todos get --id 1"
+# Get as YAML
+Type "npx spec2cli --spec api.yaml --base-url http://localhost:4000 --output yaml todos get --id 1"
 Enter
-Sleep 2.5s
+Sleep 3s
 
 # Create with auth
-Type "node dist/index.js --spec examples/todo-api/openapi.yaml --base-url http://localhost:4000 --token test-token-123 --output json todos create --title 'Ship spec2cli v1' --priority high"
+Type "npx spec2cli --spec api.yaml --base-url http://localhost:4000 --token test-token-123 --output json todos create --title 'Ship v1' --priority high"
 Enter
-Sleep 2.5s
+Sleep 3s
 
 # Search registry
-Type "node dist/index.js search payments"
+Type "npx spec2cli search payments"
 Enter
-Sleep 2.5s
+Sleep 3s
 
 # Agent help
-Type "node dist/index.js --spec examples/todo-api/openapi.yaml --agent-help"
+Type "npx spec2cli --spec api.yaml --agent-help"
 Enter
-Sleep 4s
+Sleep 5s
 
 Sleep 1s
