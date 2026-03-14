@@ -9,6 +9,7 @@ import { registerAuthCommands } from "./auth/commands.js";
 import { registerInitCommand } from "./config/init.js";
 import { registerUseCommand } from "./templates/commands.js";
 import { loadConfig, resolveConfig } from "./config/rc.js";
+import { stringify as toYaml } from "yaml";
 import type { RuntimeConfig } from "./executor/types.js";
 import type { OperationGroup, OpenAPISpec } from "./parser/types.js";
 
@@ -78,6 +79,12 @@ async function main() {
   try {
     const spec = await loadSpec(specPath);
     const groups = extractOperations(spec);
+
+    // --agent-help: compact YAML with everything an AI agent needs
+    if (rawArgs.includes("--agent-help")) {
+      printAgentHelp(groups, spec);
+      return;
+    }
 
     const config: RuntimeConfig = {
       specPath,
@@ -158,6 +165,67 @@ function buildDynamicCommands(
       });
     }
   }
+}
+
+function printAgentHelp(groups: OperationGroup[], spec: OpenAPISpec): void {
+  const help: Record<string, unknown> = {
+    api: spec.info.title,
+    base_url: spec.servers?.[0]?.url ?? "http://localhost:3000",
+    auth: resolveAuthHint(spec),
+    commands: {} as Record<string, unknown>,
+  };
+
+  const commands = help.commands as Record<string, unknown>;
+
+  for (const group of groups) {
+    const groupCmds: Record<string, unknown> = {};
+
+    for (const op of group.operations) {
+      const cmdName = simplifyName(op.id, group.tag);
+      const cmd: Record<string, unknown> = {
+        method: op.method,
+        desc: op.summary || op.description,
+      };
+
+      const params = op.params.filter((p) => p.required);
+      const optionals = op.params.filter((p) => !p.required);
+
+      if (params.length > 0) {
+        cmd.required = params.map((p) => {
+          const entry: Record<string, unknown> = { name: p.name, type: p.type };
+          if (p.enum) entry.enum = p.enum;
+          return entry;
+        });
+      }
+
+      if (optionals.length > 0) {
+        cmd.optional = optionals.map((p) => {
+          const entry: Record<string, unknown> = { name: p.name, type: p.type };
+          if (p.enum) entry.enum = p.enum;
+          if (p.default !== undefined) entry.default = p.default;
+          return entry;
+        });
+      }
+
+      groupCmds[cmdName] = cmd;
+    }
+
+    commands[group.tag] = groupCmds;
+  }
+
+  console.log(toYaml(help));
+}
+
+function resolveAuthHint(spec: OpenAPISpec): string {
+  const schemes = spec.components?.securitySchemes;
+  if (!schemes) return "none";
+
+  for (const scheme of Object.values(schemes)) {
+    if (scheme.type === "http" && scheme.scheme === "bearer") return "bearer --token <TOKEN>";
+    if (scheme.type === "apiKey") return `apiKey --api-key <KEY> (header: ${scheme.name})`;
+  }
+
+  return "none";
 }
 
 function resolveBaseUrl(spec: OpenAPISpec, specSource: string): string {
