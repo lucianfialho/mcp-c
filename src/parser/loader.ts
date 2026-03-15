@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { parse as parseYaml } from "yaml";
+import { getCachedSpec, cacheSpec } from "./cache.js";
 import type { OpenAPISpec } from "./types.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -23,11 +24,19 @@ export async function loadSpec(source: string): Promise<OpenAPISpec> {
 
 async function fetchSource(source: string): Promise<string> {
   if (source.startsWith("http://") || source.startsWith("https://")) {
+    // Check cache first
+    const cached = await getCachedSpec(source);
+    if (cached) return cached;
+
     const res = await fetch(source);
     if (!res.ok) {
       throw new Error(`Failed to fetch spec from ${source}: ${res.status} ${res.statusText}`);
     }
-    return res.text();
+    const content = await res.text();
+
+    // Cache for next time
+    await cacheSpec(source, content).catch(() => {}); // don't fail on cache write errors
+    return content;
   }
 
   try {
