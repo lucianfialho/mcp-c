@@ -9,6 +9,7 @@ import { registerAuthCommands } from "./auth/commands.js";
 import { registerInitCommand } from "./config/init.js";
 import { registerUseCommand } from "./templates/commands.js";
 import { loadConfig, resolveConfig } from "./config/rc.js";
+import { validateResponse } from "./validator/schema.js";
 import { stringify as toYaml } from "yaml";
 import type { RuntimeConfig } from "./executor/types.js";
 import type { OperationGroup, OpenAPISpec } from "./parser/types.js";
@@ -29,6 +30,7 @@ Commands (registry):
 
 Flags:
   --dry-run                 Preview the HTTP request without executing
+  --validate                Validate response against the OpenAPI schema
   --agent-help              Compact YAML with all commands, params, and auth
 
 Examples:
@@ -100,9 +102,10 @@ async function main() {
       verbose: rawArgs.includes("--verbose"),
       quiet: rawArgs.includes("--quiet"),
       dryRun: rawArgs.includes("--dry-run"),
+      validate: rawArgs.includes("--validate"),
     };
 
-    buildDynamicCommands(program, groups, config);
+    buildDynamicCommands(program, groups, config, spec);
 
     const filteredArgv = filterTocliFlags(process.argv);
     program.parse(filteredArgv);
@@ -115,7 +118,8 @@ async function main() {
 function buildDynamicCommands(
   prog: Command,
   groups: OperationGroup[],
-  config: RuntimeConfig
+  config: RuntimeConfig,
+  spec?: OpenAPISpec
 ): void {
   for (const group of groups) {
     const groupCmd = prog.command(group.tag).description(group.description);
@@ -170,6 +174,21 @@ function buildDynamicCommands(
             maxItems: config.maxItems,
           });
           if (formatted) console.log(formatted);
+
+          // --validate: check response against spec schema
+          if (config.validate && spec) {
+            const validation = validateResponse(result.data, op.path, op.method, result.status, spec);
+            console.error("");
+            if (validation.valid) {
+              console.error(`\x1b[32m✓\x1b[0m Response matches schema (${validation.fieldsChecked} fields checked)`);
+            } else {
+              console.error(`\x1b[31m✗\x1b[0m Schema validation failed (${validation.errors.length} error${validation.errors.length > 1 ? "s" : ""}):\n`);
+              for (const err of validation.errors) {
+                console.error(`  ${err.path}: expected ${err.expected}, got ${err.got}`);
+              }
+              process.exit(2);
+            }
+          }
         } catch (err) {
           console.error(`Request failed: ${(err as Error).message}`);
           process.exit(1);
@@ -235,6 +254,13 @@ function printAgentHelp(groups: OperationGroup[], spec: OpenAPISpec): void {
     api: spec.info.title,
     base_url: spec.servers?.[0]?.url ?? "http://localhost:3000",
     auth: resolveAuthHint(spec),
+    flags: {
+      "--output": "json | pretty | table | yaml | quiet",
+      "--dry-run": "preview HTTP request without executing (includes curl)",
+      "--validate": "validate response against OpenAPI schema",
+      "--verbose": "show full HTTP request/response",
+      "--max-items": "limit array results",
+    },
     commands: {} as Record<string, unknown>,
   };
 
@@ -349,7 +375,7 @@ function getFlagValue(args: string[], flag: string): string | undefined {
 
 function filterTocliFlags(argv: string[]): string[] {
   const valueFlags = new Set(["--spec", "--output", "--max-items", "--token", "--api-key", "--base-url", "--profile", "--env"]);
-  const boolFlags = new Set(["--verbose", "--quiet", "--dry-run", "--agent-help"]);
+  const boolFlags = new Set(["--verbose", "--quiet", "--dry-run", "--validate", "--agent-help"]);
   const result: string[] = [];
   let i = 0;
   while (i < argv.length) {

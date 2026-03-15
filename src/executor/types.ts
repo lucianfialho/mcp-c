@@ -19,4 +19,5 @@ export interface RuntimeConfig {
   verbose: boolean;
   quiet: boolean;
   dryRun: boolean;
+  validate: boolean;
 }
