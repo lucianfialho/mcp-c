@@ -37,8 +37,22 @@ describe("loadSpec", () => {
   });
 
   describe("remote URLs", () => {
-    beforeEach(() => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
       vi.restoreAllMocks();
+      const { mkdtemp } = await import("node:fs/promises");
+      const { tmpdir } = await import("node:os");
+      const { join } = await import("node:path");
+      tmpDir = await mkdtemp(join(tmpdir(), "spec2cli-loader-"));
+      vi.stubEnv("XDG_CACHE_HOME", tmpDir);
+    });
+
+    afterEach(async () => {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+      const { rm } = await import("node:fs/promises");
+      await rm(tmpDir, { recursive: true, force: true });
     });
 
     it("loads spec from URL", async () => {
@@ -53,8 +67,6 @@ describe("loadSpec", () => {
       expect(spec.openapi).toBe("3.0.3");
       expect(spec.info.title).toBe("Petstore");
       expect(fetch).toHaveBeenCalledWith("https://example.com/openapi.yaml");
-
-      vi.unstubAllGlobals();
     });
 
     it("throws for failed HTTP request", async () => {
@@ -65,8 +77,6 @@ describe("loadSpec", () => {
       }));
 
       await expect(loadSpec("https://example.com/missing.yaml")).rejects.toThrow("Failed to fetch spec");
-
-      vi.unstubAllGlobals();
     });
   });
 
