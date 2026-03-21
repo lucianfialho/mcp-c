@@ -148,6 +148,12 @@ function buildDynamicCommands(
             params[p.name] = Number(opts[p.name]);
           } else if (p.type === "boolean") {
             params[p.name] = opts[p.name] === true || opts[p.name] === "true";
+          } else if ((p.type === "object" || p.type === "array") && typeof opts[p.name] === "string") {
+            try {
+              params[p.name] = JSON.parse(opts[p.name] as string);
+            } catch {
+              params[p.name] = opts[p.name];
+            }
           } else {
             params[p.name] = opts[p.name];
           }
