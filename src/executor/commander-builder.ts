@@ -95,6 +95,18 @@ function collectParams(
       case "boolean":
         params[p.name] = value === true || value === "true";
         break;
+      case "object":
+      case "array":
+        if (typeof value === "string") {
+          try {
+            params[p.name] = JSON.parse(value);
+          } catch {
+            params[p.name] = value;
+          }
+        } else {
+          params[p.name] = value;
+        }
+        break;
       default:
         params[p.name] = value;
     }
