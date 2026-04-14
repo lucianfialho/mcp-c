@@ -138,6 +138,81 @@ describe("executeRequest", () => {
     vi.unstubAllGlobals();
   });
 
+  it("sets multiple headers for multi-header auth (VTEX-style)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      status: 200,
+      statusText: "OK",
+      headers: new Map([["content-type", "application/json"]]),
+      text: () => Promise.resolve(JSON.stringify({})),
+    }));
+
+    const auth: AuthConfig = {
+      type: "headers",
+      value: "",
+      headers: {
+        "X-VTEX-API-AppKey": "my-key",
+        "X-VTEX-API-AppToken": "my-token",
+      },
+    };
+    await executeRequest(makeOp(), {}, auth, BASE_URL);
+
+    const callArgs = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const headers = (callArgs[1] as RequestInit).headers as Record<string, string>;
+    expect(headers["X-VTEX-API-AppKey"]).toBe("my-key");
+    expect(headers["X-VTEX-API-AppToken"]).toBe("my-token");
+
+    vi.unstubAllGlobals();
+  });
+
+  it("masks auth header values in verbose output (multi-header)", async () => {
+    const stderr = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      status: 200,
+      statusText: "OK",
+      headers: new Map([["content-type", "application/json"]]),
+      text: () => Promise.resolve("{}"),
+    }));
+
+    const auth: AuthConfig = {
+      type: "headers",
+      value: "",
+      headers: {
+        "X-VTEX-API-AppKey": "vtexappkey-sanavita-SECRET",
+        "X-VTEX-API-AppToken": "FJRVTFCDCJWZQWDYPQELDCWWGEONETPXMVPDVMBQSBBE",
+      },
+    };
+    await executeRequest(makeOp(), {}, auth, BASE_URL, true);
+
+    const logged = stderr.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(logged).not.toContain("vtexappkey-sanavita-SECRET");
+    expect(logged).not.toContain("FJRVTFCDCJWZQWDYPQELDCWWGEONETPXMVPDVMBQSBBE");
+    expect(logged).toMatch(/X-VTEX-API-AppKey: vtex\.\.\.CRET/);
+    expect(logged).toMatch(/X-VTEX-API-AppToken: FJRV\.\.\.SBBE/);
+
+    stderr.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it("masks apiKey header value in verbose output", async () => {
+    const stderr = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      status: 200,
+      statusText: "OK",
+      headers: new Map([["content-type", "application/json"]]),
+      text: () => Promise.resolve("{}"),
+    }));
+
+    const auth: AuthConfig = { type: "apiKey", value: "super-secret-key-value", headerName: "X-Custom-Key" };
+    await executeRequest(makeOp(), {}, auth, BASE_URL, true);
+
+    const logged = stderr.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(logged).not.toContain("super-secret-key-value");
+    expect(logged).toMatch(/X-Custom-Key: supe\.\.\.alue/);
+
+    stderr.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
   it("returns status, headers, and parsed data", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       status: 200,
