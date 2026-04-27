@@ -10,6 +10,7 @@ export interface RcConfig {
     token?: string;
     envVar?: string;
   };
+  privacyFilter?: boolean;
   environments?: Record<string, {
     baseUrl?: string;
     auth?: {
@@ -36,12 +37,13 @@ export async function loadConfig(startDir?: string): Promise<RcConfig | null> {
   return config;
 }
 
-export function resolveConfig(config: RcConfig, envName?: string): { spec: string; baseUrl?: string; authType?: string; authToken?: string; authEnvVar?: string } {
+export function resolveConfig(config: RcConfig, envName?: string): { spec: string; baseUrl?: string; authType?: string; authToken?: string; authEnvVar?: string; privacyFilter?: boolean } {
   let spec = config.spec;
   let baseUrl = config.baseUrl;
   let authType = config.auth?.type;
   let authToken = config.auth?.token;
   let authEnvVar = config.auth?.envVar;
+  const privacyFilter = config.privacyFilter;
 
   if (envName && config.environments?.[envName]) {
     const env = config.environments[envName];
@@ -56,7 +58,7 @@ export function resolveConfig(config: RcConfig, envName?: string): { spec: strin
   if (baseUrl) baseUrl = resolveEnvVars(baseUrl);
   if (authToken) authToken = resolveEnvVars(authToken);
 
-  return { spec, baseUrl, authType, authToken, authEnvVar };
+  return { spec, baseUrl, authType, authToken, authEnvVar, privacyFilter };
 }
 
 async function findRcFile(dir: string): Promise<string | null> {

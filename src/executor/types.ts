@@ -21,4 +21,7 @@ export interface RuntimeConfig {
   quiet: boolean;
   dryRun: boolean;
   validate: boolean;
+  filterPii: boolean;
+  piiSalt: string;
+  piiFields: string[];
 }
