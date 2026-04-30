@@ -25,7 +25,7 @@ export function extractOperations(spec: OpenAPISpec): OperationGroup[] {
       if (!op) continue;
 
       const tag = op.tags?.[0] ?? "default";
-      const id = op.operationId ?? generateOperationId(method, path);
+      const id = resolveOperationId(op.operationId, method, path);
       const params = extractParams(op, pathParams, spec);
       const security = op.security ?? spec.security ?? [];
 
@@ -62,6 +62,13 @@ export function extractOperations(spec: OpenAPISpec): OperationGroup[] {
   }
 
   return groups;
+}
+
+function resolveOperationId(operationId: string | undefined, method: string, path: string): string {
+  if (!operationId || operationId.includes("/") || operationId.includes("{")) {
+    return generateOperationId(method, path);
+  }
+  return operationId;
 }
 
 function generateOperationId(method: string, path: string): string {

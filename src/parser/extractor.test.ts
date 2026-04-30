@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { extractOperations } from "./extractor.js";
 import { loadSpec } from "./loader.js";
 import path from "node:path";
+import type { OpenAPISpec } from "./types.js";
 
 const FIXTURE = path.resolve("test/fixtures/petstore.yaml");
 
@@ -120,6 +121,68 @@ describe("extractOperations", () => {
 
     const store = groups.find((g) => g.tag === "store")!;
     expect(store.description).toBe("Store operations");
+  });
+
+  it("cleans path-like operationId containing slashes", () => {
+    const spec: OpenAPISpec = {
+      openapi: "3.0.3",
+      info: { title: "HubSpot", version: "1.0" },
+      paths: {
+        "/crm/v3/objects/contacts": {
+          get: {
+            operationId: "get-/crm/v3/objects/contacts_getpage",
+            tags: ["contacts"],
+            summary: "List contacts",
+          },
+          post: {
+            operationId: "post-/crm/v3/objects/contacts_create",
+            tags: ["contacts"],
+            summary: "Create a contact",
+          },
+        },
+        "/crm/v3/objects/contacts/{contactId}": {
+          get: {
+            operationId: "get-/crm/v3/objects/contacts/{contactId}_getbyid",
+            tags: ["contacts"],
+            summary: "Get a contact",
+          },
+        },
+      },
+    };
+
+    const groups = extractOperations(spec);
+    const contacts = groups.find((g) => g.tag === "contacts")!;
+    const ids = contacts.operations.map((o) => o.id).sort();
+
+    expect(ids).toEqual(["getContact", "createContact", "listContacts"].sort());
+  });
+
+  it("cleans operationId containing path parameter braces", () => {
+    const spec: OpenAPISpec = {
+      openapi: "3.0.3",
+      info: { title: "API", version: "1.0" },
+      paths: {
+        "/users/{userId}": {
+          delete: {
+            operationId: "delete-users-{userId}",
+            tags: ["users"],
+          },
+        },
+      },
+    };
+
+    const groups = extractOperations(spec);
+    const users = groups.find((g) => g.tag === "users")!;
+    expect(users.operations[0].id).toBe("deleteUser");
+  });
+
+  it("preserves clean operationId without slashes or braces", async () => {
+    const spec = await loadSpec(FIXTURE);
+    const groups = extractOperations(spec);
+    const pets = groups.find((g) => g.tag === "pets")!;
+
+    const ids = pets.operations.map((o) => o.id).sort();
+    expect(ids).toEqual(["createPet", "deletePet", "getPet", "listPets", "updatePet"]);
   });
 
   it("handles untagged operations under 'default'", async () => {

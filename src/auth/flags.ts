@@ -83,21 +83,57 @@ export async function resolveAuth(
   return { type: "none", value: "" };
 }
 
+function collectReferencedSchemeNames(spec: OpenAPISpec): Set<string> {
+  const names = new Set<string>();
+
+  if (spec.security) {
+    for (const req of spec.security) {
+      for (const name of Object.keys(req)) names.add(name);
+    }
+    return names;
+  }
+
+  for (const pathItem of Object.values(spec.paths ?? {})) {
+    const ops = [pathItem.get, pathItem.post, pathItem.put, pathItem.patch, pathItem.delete, pathItem.head, pathItem.options];
+    for (const op of ops) {
+      if (op?.security) {
+        for (const req of op.security) {
+          for (const name of Object.keys(req)) names.add(name);
+        }
+      }
+    }
+  }
+
+  return names;
+}
+
 function detectAuthFromSpec(spec: OpenAPISpec): Omit<AuthConfig, "value"> | null {
   const schemes = spec.components?.securitySchemes;
   if (!schemes) return null;
 
-  for (const scheme of Object.values(schemes)) {
+  const referencedNames = collectReferencedSchemeNames(spec);
+  const entries = Object.entries(schemes);
+  const candidates = referencedNames.size > 0
+    ? entries.filter(([name]) => referencedNames.has(name))
+    : entries;
+
+  let apiKeyHeader: string | null = null;
+  let hasBasic = false;
+
+  for (const [, scheme] of candidates) {
     if (scheme.type === "http" && scheme.scheme === "bearer") {
       return { type: "bearer" };
     }
-    if (scheme.type === "apiKey" && scheme.in === "header") {
-      return { type: "apiKey", headerName: scheme.name };
+    if (scheme.type === "apiKey" && scheme.in === "header" && scheme.name && !apiKeyHeader) {
+      apiKeyHeader = scheme.name;
     }
     if (scheme.type === "http" && scheme.scheme === "basic") {
-      return { type: "basic" };
+      hasBasic = true;
     }
   }
+
+  if (apiKeyHeader) return { type: "apiKey", headerName: apiKeyHeader };
+  if (hasBasic) return { type: "basic" };
 
   return null;
 }

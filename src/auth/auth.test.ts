@@ -311,6 +311,122 @@ describe("resolveAuth with multi-header", () => {
   });
 });
 
+describe("detectAuthFromSpec — scheme priority and per-operation security", () => {
+  let tmpDir: string;
+
+  beforeEach(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), "tocli-detect-"));
+    vi.stubEnv("XDG_CONFIG_HOME", tmpDir);
+  });
+
+  afterEach(async () => {
+    vi.unstubAllEnvs();
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it("prefers bearer over apiKey header even when apiKey header appears first", async () => {
+    const spec: OpenAPISpec = {
+      ...minimalSpec,
+      components: {
+        securitySchemes: {
+          myApiKey: { type: "apiKey", in: "header", name: "X-API-Key" },
+          bearerAuth: { type: "http", scheme: "bearer" },
+        },
+      },
+      security: [{ myApiKey: [] }, { bearerAuth: [] }],
+    };
+    const auth = await resolveAuth({}, spec, { API_TOKEN: "tok" });
+    expect(auth.type).toBe("bearer");
+  });
+
+  it("prefers apiKey header over query param when both are present", async () => {
+    const spec: OpenAPISpec = {
+      ...minimalSpec,
+      components: {
+        securitySchemes: {
+          hapikey: { type: "apiKey", in: "query", name: "hapikey" },
+          private_apps: { type: "apiKey", in: "header", name: "private-app" },
+        },
+      },
+      security: [{ hapikey: [] }, { private_apps: [] }],
+    };
+    const auth = await resolveAuth({}, spec, { API_KEY: "tok" });
+    expect(auth.type).toBe("apiKey");
+    expect(auth.headerName).toBe("private-app");
+  });
+
+  it("HubSpot-like: no global security, picks header scheme from per-operation security", async () => {
+    const spec: OpenAPISpec = {
+      openapi: "3.0.3",
+      info: { title: "HubSpot", version: "1.0" },
+      paths: {
+        "/contacts": {
+          get: {
+            operationId: "list",
+            security: [
+              { hapikey: [] },
+              { private_apps: [] },
+              { oauth2: ["crm.objects.contacts.read"] },
+            ],
+          },
+        },
+      },
+      components: {
+        securitySchemes: {
+          hapikey: { type: "apiKey", in: "query", name: "hapikey" },
+          developer_hapikey: { type: "apiKey", in: "query", name: "hapikey" },
+          private_apps: { type: "apiKey", in: "header", name: "private-app" },
+          private_apps_legacy: { type: "apiKey", in: "header", name: "private-app-legacy" },
+          oauth2: { type: "oauth2" } as any,
+        },
+      },
+    };
+    const auth = await resolveAuth({}, spec, { API_KEY: "tok" });
+    expect(auth.type).toBe("apiKey");
+    expect(auth.headerName).toBe("private-app");
+  });
+
+  it("ignores schemes not referenced by any operation when no global security", async () => {
+    const spec: OpenAPISpec = {
+      openapi: "3.0.3",
+      info: { title: "Mixed", version: "1.0" },
+      paths: {
+        "/data": {
+          get: {
+            operationId: "getData",
+            security: [{ headerKey: [] }],
+          },
+        },
+      },
+      components: {
+        securitySchemes: {
+          queryKey: { type: "apiKey", in: "query", name: "api_key" },
+          headerKey: { type: "apiKey", in: "header", name: "X-API-Key" },
+        },
+      },
+    };
+    const auth = await resolveAuth({}, spec, { API_KEY: "tok" });
+    expect(auth.type).toBe("apiKey");
+    expect(auth.headerName).toBe("X-API-Key");
+  });
+
+  it("falls back to all schemes when neither global nor per-operation security defined", async () => {
+    const spec: OpenAPISpec = {
+      openapi: "3.0.3",
+      info: { title: "NoSec", version: "1.0" },
+      paths: { "/data": { get: { operationId: "getData" } } },
+      components: {
+        securitySchemes: {
+          apiKey: { type: "apiKey", in: "header", name: "X-API-Key" },
+        },
+      },
+    };
+    const auth = await resolveAuth({}, spec, { API_KEY: "tok" });
+    expect(auth.type).toBe("apiKey");
+    expect(auth.headerName).toBe("X-API-Key");
+  });
+});
+
 describe("maskToken", () => {
   it("masks long tokens", () => {
     expect(maskToken("sk-1234567890abcdef")).toBe("sk-1...cdef");
