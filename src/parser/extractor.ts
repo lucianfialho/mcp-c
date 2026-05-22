@@ -8,6 +8,9 @@ import type {
   SchemaObject,
   SecurityRequirement,
 } from "./types.js";
+import { resolveSchema, resolveParameter } from "./refs.js";
+import { paramFromSpec, schemaToType } from "./params.js";
+import { resolveOperationId } from "./naming.js";
 
 const HTTP_METHODS = ["get", "post", "put", "patch", "delete", "head", "options"] as const;
 
@@ -64,47 +67,6 @@ export function extractOperations(spec: OpenAPISpec): OperationGroup[] {
   return groups;
 }
 
-function resolveOperationId(operationId: string | undefined, method: string, path: string): string {
-  if (!operationId || operationId.includes("/") || operationId.includes("{")) {
-    return generateOperationId(method, path);
-  }
-  return operationId;
-}
-
-function generateOperationId(method: string, path: string): string {
-  // /pets/{petId}/toys → getPetToy (for GET)
-  const segments = path
-    .split("/")
-    .filter((s) => s && !s.startsWith("{"))
-    .map((s) => s.replace(/[^a-zA-Z0-9]/g, ""));
-
-  if (segments.length === 0) return method;
-
-  const resource = segments[segments.length - 1];
-  // Singularize: crude but works for common cases
-  const singular = resource.endsWith("s") ? resource.slice(0, -1) : resource;
-
-  switch (method) {
-    case "get":
-      // If path ends with a param like /pets/{id}, it's a get-one
-      if (path.endsWith("}")) return `get${capitalize(singular)}`;
-      return `list${capitalize(resource)}`;
-    case "post":
-      return `create${capitalize(singular)}`;
-    case "put":
-    case "patch":
-      return `update${capitalize(singular)}`;
-    case "delete":
-      return `delete${capitalize(singular)}`;
-    default:
-      return `${method}${capitalize(resource)}`;
-  }
-}
-
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
 function extractParams(
   op: OperationObject,
   pathLevelParams: ParameterObject[],
@@ -114,13 +76,17 @@ function extractParams(
   const seen = new Set<string>();
 
   // Operation-level params override path-level
-  for (const p of op.parameters ?? []) {
+  for (const rawP of op.parameters ?? []) {
+    const p = resolveParameter(rawP, spec);
+    if (!p.name || !p.in) continue;
     seen.add(`${p.in}:${p.name}`);
     params.push(paramFromSpec(p));
   }
 
   // Add path-level params not overridden
-  for (const p of pathLevelParams) {
+  for (const rawP of pathLevelParams) {
+    const p = resolveParameter(rawP, spec);
+    if (!p.name || !p.in) continue;
     if (!seen.has(`${p.in}:${p.name}`)) {
       params.push(paramFromSpec(p));
     }
@@ -154,37 +120,4 @@ function extractParams(
   return params;
 }
 
-function paramFromSpec(p: ParameterObject): Param {
-  const schema = p.schema ?? {};
-  return {
-    name: p.name,
-    in: p.in as Param["in"],
-    type: schemaToType(schema),
-    required: p.required ?? p.in === "path",
-    description: p.description ?? schema.description ?? "",
-    enum: schema.enum,
-    default: schema.default,
-  };
-}
 
-function schemaToType(schema: SchemaObject): string {
-  if (schema.enum) return "enum";
-  if (schema.type === "array") {
-    const itemType = schema.items ? schemaToType(schema.items) : "string";
-    return `${itemType}[]`;
-  }
-  return schema.type ?? "string";
-}
-
-function resolveSchema(schema: SchemaObject, spec: OpenAPISpec): SchemaObject {
-  if (schema.$ref) {
-    // #/components/schemas/Pet → components.schemas.Pet
-    const parts = schema.$ref.replace("#/", "").split("/");
-    let resolved: unknown = spec;
-    for (const part of parts) {
-      resolved = (resolved as Record<string, unknown>)?.[part];
-    }
-    return (resolved as SchemaObject) ?? schema;
-  }
-  return schema;
-}
