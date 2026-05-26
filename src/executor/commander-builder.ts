@@ -2,6 +2,7 @@ import { Command } from "commander";
 import type { OperationGroup, Operation, OpenAPISpec } from "../parser/types.js";
 import type { RuntimeConfig } from "./types.js";
 import { executeRequest } from "./http.js";
+import { sanitizeCommandName, uniqueName } from "../cli/sanitize.js";
 
 export function buildCommands(
   program: Command,
@@ -9,9 +10,11 @@ export function buildCommands(
   config: RuntimeConfig,
   spec: OpenAPISpec
 ): void {
+  const usedNames = new Set<string>();
   for (const group of groups) {
+    const groupName = uniqueName(sanitizeCommandName(group.tag), usedNames);
     const groupCmd = program
-      .command(group.tag)
+      .command(groupName)
       .description(group.description);
 
     for (const op of group.operations) {
@@ -128,3 +131,4 @@ function simplifyName(operationId: string, tag: string): string {
 
   return operationId.toLowerCase();
 }
+

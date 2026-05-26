@@ -5,6 +5,7 @@ import { validateResponse } from "../validator/schema.js";
 import { filterPii } from "@lucianfialho/pii-filter";
 import { printDryRun } from "./dry-run.js";
 import { simplifyName } from "./agent-help.js";
+import { sanitizeCommandName, uniqueName } from "./sanitize.js";
 import type { RuntimeConfig } from "../executor/types.js";
 import type { OperationGroup, OpenAPISpec } from "../parser/types.js";
 
@@ -14,8 +15,10 @@ export function buildDynamicCommands(
   config: RuntimeConfig,
   spec?: OpenAPISpec
 ): void {
+  const usedNames = new Set<string>();
   for (const group of groups) {
-    const groupCmd = prog.command(group.tag).description(group.description);
+    const groupName = uniqueName(sanitizeCommandName(group.tag), usedNames);
+    const groupCmd = prog.command(groupName).description(group.description);
 
     for (const op of group.operations) {
       const cmdName = simplifyName(op.id, group.tag);
